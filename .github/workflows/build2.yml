@@ -1,0 +1,21 @@
+name: build2
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -o ./*.zip
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: 25}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: "9.8.0"}
+      - run: |
+          cd noctis-client
+          curl -s https://maven.fabricmc.net/fabric-loom/fabric-loom.gradle.plugin/maven-metadata.xml > loom-meta.xml
+          LOOM=$(grep -o '<release>[^<]*' loom-meta.xml | sed 's/<release>//')
+          echo "Using Loom $LOOM"
+          sed -i "s/^loom_version=.*/loom_version=$LOOM/" gradle.properties
+      - run: cd noctis-client && gradle build
+      - uses: actions/upload-artifact@v4
+        if: always(
