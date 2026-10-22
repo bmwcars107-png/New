@@ -1,34 +1,22 @@
-name: Build JAR
-on:
-  workflow_dispatch:
-  push:
+name: build
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: unzip -o ./*.zip
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 25
-      - name: Unzip project
-        run: unzip -q *.zip
-      - name: Fix versions
-        run: |
+        with: {distribution: temurin, java-version: 25}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: "9.8.0"}
+      - run: |
           cd noctis-client
           curl -s https://maven.fabricmc.net/fabric-loom/fabric-loom.gradle.plugin/maven-metadata.xml > loom-meta.xml
           LOOM=$(grep -o '<release>[^<]*' loom-meta.xml | sed 's/<release>//')
           echo "Using Loom $LOOM"
           sed -i "s/^loom_version=.*/loom_version=$LOOM/" gradle.properties
-          sed -i "s#gradle-9.2.0-bin.zip#gradle-9.8.0-bin.zip#" gradle/wrapper/gradle-wrapper.properties
-      - name: Build
-        run: |
-          cd noctis-client
-          chmod +x gradlew
-          ./gradlew build 2>&1 | grep -v "^\s*at " | head -150
-          test ${PIPESTATUS[0]} -eq 0
+      - run: cd noctis-client && gradle build
       - uses: actions/upload-artifact@v4
         if: always()
-        with:
-          name: noctis-client
-          path: noctis-client/build/libs/*.jar
+        with: {name: noctis-client-jar, path: "noctis-client/build/libs/*.jar"}
